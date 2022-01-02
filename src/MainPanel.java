@@ -1,9 +1,7 @@
 import java.awt.*;
 import java.awt.event.*;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Random;
-import java.util.TimerTask;
 import javax.swing.*;
 
 public class MainPanel extends JPanel implements ActionListener{
@@ -98,7 +96,6 @@ public class MainPanel extends JPanel implements ActionListener{
         startGame();
 
     }
-    // ==================METHODS===================
 
     public void startGame(){
         running = true;
@@ -108,23 +105,39 @@ public class MainPanel extends JPanel implements ActionListener{
     }
 
     public void paint(Graphics g){
-        //init
-        super.paint(g); //paint background
-        Graphics2D g2d = (Graphics2D) g;
 
-        //background
-        g2d.drawImage(background, 0, 0, null);
+        super.paint(g);
+        Graphics2D g2d = (Graphics2D) g;
         g.setFont(new Font("Silkscreen", Font.PLAIN, 30));
+
+        g2d.drawImage(background, 0, 0, null);
+        g2d.drawImage(bridge, 250, 500, null);
+
+        paintStatistics(g2d);
+        paintFruits(g2d);
+        paintMixingFood(g2d);
+        paintGlass(g2d);
+        animateChef(g2d);
+
+        if (glassTenacity == 0){
+            paintEndResults(g2d);
+            stopTheGame();
+        }
+
+    }
+
+    public void paintStatistics(Graphics g){
         g.drawString("Score: " + score, 50, 100);
         g.drawString("Glass: " + glassTenacity, 50, 150);
+    }
 
-        //============fruits============
-
+    public void paintFruits(Graphics2D g2d){
         for (Fruits i: fallingFruits){
             g2d.drawImage(i.fruit, i.x, i.y, null);
         }
+    }
 
-        //food mixing===========
+    public void paintMixingFood(Graphics2D g2d){
         queue++;
         if (queue >= 0 && queue < 20){
             g2d.drawImage(food.get(0), 250, 510, null);
@@ -137,62 +150,69 @@ public class MainPanel extends JPanel implements ActionListener{
             queue = 1;
         }
 
+    }
 
-
-        //background
+    public void paintGlass(Graphics2D g2d){
         switch (glassTenacity){
             case 3: g2d.drawImage(glass, 250, 450, null); break;
             case 2: g2d.drawImage(glassBroke1, 250, 450, null); break;
             case 1: g2d.drawImage(glassBroke2, 250, 450, null); break;
         }
+    }
 
-        g2d.drawImage(glass, 250, 450, null);
-        g2d.drawImage(bridge, 250, 500, null);
-
-        //chef drawing
+    public void animateChef(Graphics2D g2d){
         if (hitting >= 0){hitting--;}
 
+
         if (hitting < 20 && hitting > 13){
-            if (chefSide == Direction.right){
-                g2d.drawImage(chefHitting1Right, x, y, null);
-            }
-            else if (chefSide == Direction.left){
-                g2d.drawImage(chefHitting1Left, x, y, null);
+
+            switch (chefSide) {
+                case right: paintChef(g2d, chefHitting1Right); break;
+                case left: paintChef(g2d, chefHitting1Left); break;
             }
 
         }
         if (hitting <= 13  && hitting > 0){
-            if (chefSide == Direction.right){
-                g2d.drawImage(chefHitting2Right, x, y, null);
-            }
-            else if (chefSide == Direction.left){
-                g2d.drawImage(chefHitting2Left, x, y, null);
+
+            switch (chefSide) {
+                case right: paintChef(g2d, chefHitting2Right); break;
+                case left: paintChef(g2d, chefHitting2Left); break;
             }
 
         }
+
         if (hitting == 0) is_hitting = false;
 
         if (!(is_hitting)){
-            if (chefSide == Direction.right){
-                g2d.drawImage(chefRight, x, y, null);
-            }
-            if (chefSide == Direction.left){
-                g2d.drawImage(chefLeft, x, y, null);
+            switch (chefSide) {
+                case right: paintChef(g2d, chefRight); break;
+                case left: paintChef(g2d, chefLeft); break;
             }
         }
-        if (glassTenacity == 0){
-            g2d.drawImage(glassBroke2, 250, 450, null);
-            g2d.drawImage(desk, 50, 35, null);
-            g2d.drawString("Score: " + score, 400, 250);
-            g2d.drawString("Press Enter to start", 280, 300);
-            running = false;
-        }
+    }
 
+    protected void paintChef(Graphics2D g2d, Image image){
+        g2d.drawImage(image, x, y, null);
+    }
+
+    public void paintEndResults(Graphics2D g2d){
+        g2d.drawImage(glassBroke2, 250, 450, null);
+        g2d.drawImage(desk, 50, 35, null);
+        g2d.drawString("Score: " + score, 400, 250);
+        g2d.drawString("Press Enter to start", 280, 300);
 
     }
 
+    public void stopTheGame(){
+        running = false;
+    }
+
     public void move(){
-        //move chef
+        moveChef();
+        moveFruits();
+    }
+
+    public void moveChef(){
         if (dir == Direction.right){
             if (x + SPEED < RIGHT_BORDER){
                 x += SPEED; dir = Direction.stop;
@@ -203,20 +223,22 @@ public class MainPanel extends JPanel implements ActionListener{
                 x -= SPEED; dir = Direction.stop;
             }
         }
-        //move fruits
+    }
+
+    public void moveFruits(){
         for (int i = 0; i < fallingFruits.size(); i++){
             Fruits fruit = fallingFruits.get(i);
             fruit.setY(fruit.y + fallingSpeed);
             fallingFruits.set(i, fruit);
 
             if (fruit.y > 500){
-                checkFruit(fruit);
+                handleFallenFruits(fruit);
                 fallingFruits.remove(i);
             }
 
         }
-
     }
+
     public void createFruits(){
 
         fruit_delay--;
@@ -243,18 +265,22 @@ public class MainPanel extends JPanel implements ActionListener{
                 current.setX(x_random + 250);
                 fallingFruits.add(current);
             }
-            if (score < 100){
-                fruit_delay = 60;
-            }
-            if (score >= 100 && score < 200){
-                fruit_delay = 50;
-            }
-            if (score >= 200){
-                fruit_delay = 40;
-            }
 
+            setDifficulty();
         }
 
+    }
+
+    public void setDifficulty(){
+        if (score < 100){
+            fruit_delay = 60;
+        }
+        if (score >= 100 && score < 200){
+            fruit_delay = 50;
+        }
+        if (score >= 200){
+            fruit_delay = 40;
+        }
     }
 
     public void slice() {
@@ -266,7 +292,7 @@ public class MainPanel extends JPanel implements ActionListener{
                 if (fruit.y > 310 && fruit.y < 350) {
 
                     if (fruit.name == "golden apple") {
-                        sliceALl();
+                        sliceAll();
                     }
                     fruit.setFruit();
                     fallingFruits.set(i, fruit);
@@ -274,7 +300,7 @@ public class MainPanel extends JPanel implements ActionListener{
                 }
                 if (fruit.y >= 350 && fruit.y < 500) {
                     if (fruit.name == "golden apple") {
-                        sliceALl();
+                        sliceAll();
                     }
                     fruit.setFruit();
                     fruit.setFruit();
@@ -285,7 +311,7 @@ public class MainPanel extends JPanel implements ActionListener{
 
         }
     }
-    public void sliceALl(){
+    public void sliceAll(){
         for (int i = 0; i < fallingFruits.size(); i++) {
             Fruits fruit = fallingFruits.get(i);
             fruit.setFruit();
@@ -293,7 +319,7 @@ public class MainPanel extends JPanel implements ActionListener{
             fallingFruits.set(i, fruit);
         }
     }
-    public void checkFruit(Fruits fruit){
+    public void handleFallenFruits(Fruits fruit){
 
         if (fruit.fruit == fruit.firstFruit){
             glassTenacity--;
@@ -324,25 +350,31 @@ public class MainPanel extends JPanel implements ActionListener{
     public class MykeyAdapter extends KeyAdapter{
         @Override
         public void keyPressed(KeyEvent e) {
-            if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
-                dir = Direction.right;
-                chefSide = Direction.right;
-            }
-            if (e.getKeyCode() == KeyEvent.VK_LEFT) {
-                dir = Direction.left;
-                chefSide = Direction.left;
-            }
-            if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-                hitting = 20;
-                is_hitting = true;
-                slice();
-            }
-            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                fallingFruits.clear();
-                score = 0;
-                running = true;
-                glassTenacity = 3;
+            switch (e.getKeyCode()){
+                case KeyEvent.VK_RIGHT: {
+                    dir = Direction.right;
+                    chefSide = Direction.right;
+                    break;
+                }
 
+                case KeyEvent.VK_LEFT: {
+                    dir = Direction.left;
+                    chefSide = Direction.left;
+                    break;
+                }
+                case KeyEvent.VK_SPACE: {
+                    hitting = 20;
+                    is_hitting = true;
+                    slice();
+                    break;
+                }
+                case KeyEvent.VK_ENTER: {
+                    fallingFruits.clear();
+                    score = 0;
+                    running = true;
+                    glassTenacity = 3;
+                    break;
+                }
             }
 
         }
